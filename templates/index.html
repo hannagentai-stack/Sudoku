@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Web Sudoku</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Nạp thư viện WebSockets từ Internet -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+</head>
+
+<body>
+    <div class="game-wrapper">
+        <header class="header">
+            <div class="top-row">
+                <h1 id="main-title"><i class="fa-solid fa-table-cells"></i> Sudoku</h1>
+                <button id="btn-theme" class="theme-toggle"><i class="fa-solid fa-moon"></i></button>
+            </div>
+            <div class="info-row">
+                <div class="stat-box"><i class="fa-regular fa-clock"></i> <span id="timer">00:00</span></div>
+                <div class="stat-box"><i class="fa-solid fa-star"></i> <span id="score">0</span></div>
+                <select id="difficulty" class="diff-select">
+                    <option value="easy">Dễ</option>
+                    <option value="medium">Vừa</option>
+                    <option value="hard">Khó</option>
+                </select>
+            </div>
+            <!-- THANH TIẾN TRÌNH THI ĐẤU (Ban đầu ẩn) -->
+            <div id="multiplayer-panel" style="display: none; margin-top: 15px;">
+                <div style="font-size: 0.8rem; font-weight: bold; color: #3b82f6;">Tiến độ của bạn:</div>
+                <div style="background: #cbd5e1; height: 8px; border-radius: 4px; margin-bottom: 5px;">
+                    <div id="my-progress"
+                        style="width: 0%; background: #3b82f6; height: 100%; border-radius: 4px; transition: width 0.3s;">
+                    </div>
+                </div>
+                <div style="font-size: 0.8rem; font-weight: bold; color: #ef4444;">Đối thủ:</div>
+                <div style="background: #cbd5e1; height: 8px; border-radius: 4px;">
+                    <div id="opp-progress"
+                        style="width: 0%; background: #ef4444; height: 100%; border-radius: 4px; transition: width 0.3s;">
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="board-container">
+            <div id="sudoku-board" class="board"></div>
+        </main>
+
+        <footer class="footer">
+            <div class="numpad">
+                <button class="num-btn" data-num="1">1</button>
+                <button class="num-btn" data-num="2">2</button>
+                <button class="num-btn" data-num="3">3</button>
+                <button class="num-btn" data-num="4">4</button>
+                <button class="num-btn" data-num="5">5</button>
+                <button class="num-btn" data-num="6">6</button>
+                <button class="num-btn" data-num="7">7</button>
+                <button class="num-btn" data-num="8">8</button>
+                <button class="num-btn" data-num="9">9</button>
+                <button class="num-btn clear-btn" data-num="0"><i class="fa-solid fa-eraser"></i></button>
+            </div>
+            <div class="actions">
+                <button id="btn-new-game" class="action-btn primary"><i
+                        class="fa-solid fa-rotate-right"></i><span>Thường</span></button>
+                <button id="btn-daily" class="action-btn" style="background-color: #8b5cf6;"><i
+                        class="fa-solid fa-calendar-day"></i><span>Đố Ngày</span></button>
+                <!-- NÚT THI ĐẤU ONLINE MỚI -->
+                <button id="btn-multiplayer" class="action-btn" style="background-color: #10b981;"><i
+                        class="fa-solid fa-users"></i><span>Đấu Online</span></button>
+
+                <button id="btn-hint" class="action-btn warning"><i class="fa-solid fa-lightbulb"></i><span>Gợi
+                        ý</span></button>
+                <button id="btn-solve" class="action-btn danger"><i
+                        class="fa-solid fa-wand-magic-sparkles"></i><span>Giải</span></button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Cửa sổ Tạo/Vào Phòng -->
+    <div id="room-modal"
+        style="display: none; position: fixed; top:0; left:0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center;">
+        <div
+            style="background: var(--panel-bg); padding: 25px; border-radius: 12px; width: 90%; max-width: 350px; text-align: center;">
+            <h2 style="margin-bottom: 20px;">⚔️ Thi đấu 1vs1</h2>
+            <button id="btn-create-room"
+                style="width: 100%; padding: 12px; font-weight: bold; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; margin-bottom: 20px;">Tạo
+                phòng mới</button>
+
+            <p style="margin-bottom: 10px; font-weight: bold; color: gray;">HOẶC NHẬP MÃ PHÒNG</p>
+            <input type="text" id="room-code-input" placeholder="VD: A1B2"
+                style="width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 2px solid var(--border-color); text-transform: uppercase; font-weight: bold; text-align: center;">
+            <button id="btn-join-room"
+                style="width: 100%; padding: 12px; font-weight: bold; background: #f59e0b; color: white; border: none; border-radius: 8px; cursor: pointer; margin-bottom: 20px;">Vào
+                phòng</button>
+
+            <button id="btn-close-modal"
+                style="padding: 8px 20px; border-radius: 5px; border: none; cursor: pointer;">Hủy</button>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+
+</html>
