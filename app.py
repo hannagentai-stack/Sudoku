@@ -33,6 +33,11 @@ def generate_room_code():
 def index():
     return render_template('index.html')
 
+# ĐỊNH TUYẾN SERVICE WORKER CHO PWA
+@app.route('/sw.js')
+def serve_sw():
+    return app.send_static_file('sw.js')
+
 @app.route('/generate', methods=['POST'])
 def generate():
     data = request.json
@@ -58,7 +63,6 @@ def submit_daily():
     top_players = Leaderboard.query.filter_by(date_str=today_str).order_by(Leaderboard.time_seconds).limit(5).all()
     leaderboard_data = [{'name': p.player_name, 'time': p.time_seconds} for p in top_players]
     return jsonify({'status': 'success', 'leaderboard': leaderboard_data})
-
 
 # ==========================================
 # 1. LOGIC MULTIPLAYER: ĐỐI KHÁNG (1vs1)
@@ -91,7 +95,6 @@ def handle_update_progress(data):
 @socketio.on('game_won')
 def handle_game_won(data):
     emit('opponent_won', {}, to=data.get('room_code'), include_self=False)
-
 
 # ==========================================
 # 2. LOGIC MULTIPLAYER: ĐỒNG ĐỘI (CO-OP)
