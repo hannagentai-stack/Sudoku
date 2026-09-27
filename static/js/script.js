@@ -1,4 +1,4 @@
-const socket = io(); 
+const socket = io({ transports: ['polling'] }); 
 let currentBoard = [], solutionBoard = [], notesBoard = [];
 let selectedCell = null, timerInterval = null, seconds = 0, score = 0;
 let currentMode = 'normal'; 
