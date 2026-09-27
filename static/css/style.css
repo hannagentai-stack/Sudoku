@@ -250,3 +250,43 @@ body {
 .danger {
     background-color: #ef4444;
 }
+/* --- GIAO DIỆN BỔ SUNG CHO TÍNH NĂNG GHI NHÁP (PENCIL MODE) --- */
+.cell {
+    position: relative; /* Đặt làm gốc để các số nháp đè lên */
+}
+
+/* Lưới 3x3 chứa các số nháp nhỏ xíu trong 1 ô */
+.notes-grid {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    padding: 2px;
+    pointer-events: none; /* Tránh click nhầm vào số nháp */
+}
+
+.note {
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    font-size: 0.6rem; 
+    color: #64748b;
+    font-weight: 600;
+}
+[data-theme="dark"] .note { color: #94a3b8; }
+
+/* Trạng thái bật nút bút chì */
+.pencil-active { 
+    background-color: #f59e0b !important; 
+    color: white !important; 
+    transform: scale(1.05);
+}
+
+.cell-value {
+    z-index: 2; /* Đảm bảo số thật nằm đè lên trên số nháp */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%; height: 100%;
+}
