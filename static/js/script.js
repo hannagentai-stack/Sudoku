@@ -1,7 +1,7 @@
-// Dùng polling để tương thích tốt với server Render miễn phí
 const socket = io({ transports: ['polling'] }); 
 
-let currentBoard = [], solutionBoard = [], notesBoard = [];
+// THÊM initialBoard ĐỂ LƯU ĐỀ BÀI GỐC
+let initialBoard = [], currentBoard = [], solutionBoard = [], notesBoard = [];
 let selectedCell = null, timerInterval = null, seconds = 0, score = 0;
 let currentMode = 'normal'; 
 let totalEmptyCells = 0, correctCells = 0, currentRoomCode = null;
@@ -21,7 +21,6 @@ const multiplayerPanel = document.getElementById('multiplayer-panel');
 const myProgressEl = document.getElementById('my-progress');
 const oppProgressEl = document.getElementById('opp-progress');
 
-// --- THEME & GHI NHÁP ---
 themeBtn.addEventListener('click', () => {
     const isDark = document.body.getAttribute('data-theme') === 'dark';
     document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
@@ -45,7 +44,6 @@ function updateHearts() {
     mistakesElement.innerText = hearts;
 }
 
-// --- MENU CHÍNH ---
 document.getElementById('btn-new-game').addEventListener('click', () => {
     currentMode = 'normal'; mainTitle.innerHTML = '<i class="fa-solid fa-table-cells"></i> Sudoku';
     multiplayerPanel.style.display = 'none'; startNewGame(document.getElementById('difficulty').value);
@@ -56,65 +54,57 @@ document.getElementById('btn-daily').addEventListener('click', () => {
     multiplayerPanel.style.display = 'none'; startNewGame('medium'); 
 });
 
-
-// ==========================================
-// MENU MULTIPLAYER 1VS1 (ĐỐI KHÁNG)
-// ==========================================
+// MULTIPLAYER 1VS1
 document.getElementById('btn-multiplayer').addEventListener('click', () => { roomModal.style.display = 'flex'; });
 document.getElementById('btn-close-modal').addEventListener('click', () => { roomModal.style.display = 'none'; });
 
 document.getElementById('btn-create-room').addEventListener('click', (e) => { 
-    e.target.innerText = "⏳ Đang tạo phòng...";
-    e.target.style.opacity = '0.5';
+    e.target.innerText = "⏳ Đang tạo phòng..."; e.target.style.opacity = '0.5';
     socket.emit('create_room'); 
 });
-
 document.getElementById('btn-join-room').addEventListener('click', (e) => {
     const code = document.getElementById('room-code-input').value;
     if (!code) return alert("Vui lòng nhập mã phòng!");
-    e.target.innerText = "⏳ Đang kết nối...";
-    e.target.style.opacity = '0.5';
+    e.target.innerText = "⏳ Đang kết nối..."; e.target.style.opacity = '0.5';
     socket.emit('join_room', { room_code: code });
 });
 
 socket.on('room_created', (data) => {
     const btn = document.getElementById('btn-create-room');
-    btn.innerText = "Tạo phòng mới"; btn.style.opacity = '1'; // Reset nút
+    btn.innerText = "Tạo phòng mới"; btn.style.opacity = '1'; 
     alert(`Tạo phòng 1VS1 thành công!\n\n🔑 MÃ PHÒNG: ${data.room_code}`);
     currentRoomCode = data.room_code;
 });
-
 socket.on('game_start', (data) => {
     const btn = document.getElementById('btn-join-room');
     if (btn) { btn.innerText = "Vào phòng"; btn.style.opacity = '1'; }
     alert("🔥 ĐỐI THỦ ĐÃ VÀO PHÒNG! BẮT ĐẦU!");
     roomModal.style.display = 'none'; multiplayerPanel.style.display = 'block'; 
     currentMode = 'multiplayer'; currentRoomCode = data.room_code;
+    
+    // TÁCH BIỆT ĐỀ BÀI VÀ BẢNG NGƯỜI CHƠI
+    initialBoard = JSON.parse(JSON.stringify(data.board));
+    currentBoard = JSON.parse(JSON.stringify(data.board)); 
+    solutionBoard = data.solution; 
+    
     mainTitle.innerHTML = `⚔️ Đấu: ${currentRoomCode}`;
-    currentBoard = data.board; solutionBoard = data.solution; resetGameStats();
+    resetGameStats();
 });
-
 socket.on('opponent_progress', (data) => { oppProgressEl.style.width = `${data.progress}%`; });
 socket.on('opponent_won', () => { clearInterval(timerInterval); alert("💀 BẠN ĐÃ THUA!\nĐối thủ đã giải xong trước!"); });
 
-
-// ==========================================
-// MENU ĐỒNG ĐỘI CO-OP
-// ==========================================
+// ĐỒNG ĐỘI CO-OP
 document.getElementById('btn-coop').addEventListener('click', () => { coopModal.style.display = 'flex'; });
 document.getElementById('btn-close-coop-modal').addEventListener('click', () => { coopModal.style.display = 'none'; });
 
 document.getElementById('btn-create-coop').addEventListener('click', (e) => { 
-    e.target.innerText = "⏳ Đang tạo phòng...";
-    e.target.style.opacity = '0.5';
+    e.target.innerText = "⏳ Đang tạo phòng..."; e.target.style.opacity = '0.5';
     socket.emit('create_coop_room'); 
 });
-
 document.getElementById('btn-join-coop').addEventListener('click', (e) => {
     const code = document.getElementById('coop-code-input').value;
     if (!code) return alert("Vui lòng nhập mã phòng!");
-    e.target.innerText = "⏳ Đang kết nối...";
-    e.target.style.opacity = '0.5';
+    e.target.innerText = "⏳ Đang kết nối..."; e.target.style.opacity = '0.5';
     socket.emit('join_coop_room', { room_code: code });
 });
 
@@ -124,37 +114,38 @@ socket.on('coop_room_created', (data) => {
     alert(`Tạo phòng ĐỒNG ĐỘI thành công!\n\n🔑 MÃ PHÒNG: ${data.room_code}\n\nGửi mã này cho bạn bè nhé!`);
     currentRoomCode = data.room_code;
 });
-
 socket.on('coop_start', (data) => {
     const btn = document.getElementById('btn-join-coop');
     if (btn) { btn.innerText = "Vào phòng"; btn.style.opacity = '1'; }
     alert("🤝 ĐỒNG ĐỘI ĐÃ VÀO! HÃY CÙNG NHAU PHÁ ĐẢO!");
     coopModal.style.display = 'none'; multiplayerPanel.style.display = 'none'; 
     currentMode = 'coop'; currentRoomCode = data.room_code;
+    
+    // TÁCH BIỆT ĐỀ BÀI VÀ BẢNG NGƯỜI CHƠI
+    initialBoard = JSON.parse(JSON.stringify(data.board));
+    currentBoard = JSON.parse(JSON.stringify(data.board)); 
+    solutionBoard = data.solution; 
+    
     mainTitle.innerHTML = `🤝 Co-op: ${currentRoomCode}`;
-    currentBoard = data.board; solutionBoard = data.solution; resetGameStats();
+    resetGameStats();
 });
-
-// Báo lỗi chung
 socket.on('error', (data) => { 
     document.getElementById('btn-join-room').innerText = "Vào phòng"; document.getElementById('btn-join-room').style.opacity = '1';
     document.getElementById('btn-join-coop').innerText = "Vào phòng"; document.getElementById('btn-join-coop').style.opacity = '1';
     alert(data.message); 
 });
-
-// Nhận tín hiệu Đồng đội đang bấm vào ô nào
 socket.on('coop_opponent_select', (data) => { selectCell(data.row, data.col, true); });
-// Nhận tín hiệu Đồng đội vừa điền số
 socket.on('coop_opponent_fill', (data) => { fillCell(data.row, data.col, data.num, true); });
 
-
-// ==========================================
-// VẼ BẢNG & TRÒ CHƠI
-// ==========================================
+// KHỞI TẠO BẢNG CHƠI ĐƠN
 async function startNewGame(difficulty) {
     const res = await fetch('/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ difficulty: difficulty, mode: currentMode }) });
     const data = await res.json();
-    currentBoard = data.board; solutionBoard = data.solution;
+    
+    // TÁCH BIỆT ĐỀ BÀI VÀ BẢNG NGƯỜI CHƠI
+    initialBoard = JSON.parse(JSON.stringify(data.board));
+    currentBoard = JSON.parse(JSON.stringify(data.board)); 
+    solutionBoard = data.solution;
     resetGameStats();
 }
 
@@ -165,11 +156,12 @@ function resetGameStats() {
     notesBoard = Array.from({length: 9}, () => Array.from({length: 9}, () => []));
     totalEmptyCells = 0; correctCells = 0;
     for (let r = 0; r < 9; r++) {
-        for (let c = 0; c < 9; c++) if (currentBoard[r][c] === 0) totalEmptyCells++;
+        for (let c = 0; c < 9; c++) if (initialBoard[r][c] === 0) totalEmptyCells++;
     }
     renderBoard(); resetTimer();
 }
 
+// LOGIC VẼ BẢNG (FIX LỖI READONLY VÀ ĐỎ MÀU TẠI ĐÂY)
 function renderBoard() {
     boardElement.innerHTML = '';
     for (let r = 0; r < 9; r++) {
@@ -179,7 +171,16 @@ function renderBoard() {
             
             if (currentBoard[r][c] !== 0) {
                 cell.innerHTML = `<div class="cell-value">${currentBoard[r][c]}</div>`;
-                cell.classList.add('readonly');
+                
+                if (initialBoard[r][c] !== 0) {
+                    // Nếu là số đề bài cho sẵn -> Khóa vĩnh viễn
+                    cell.classList.add('readonly');
+                } else {
+                    // Nếu là số do người chơi điền mà bị sai -> Luôn luôn bôi đỏ
+                    if (currentBoard[r][c] !== solutionBoard[r][c]) {
+                        cell.classList.add('error');
+                    }
+                }
             } else {
                 if (notesBoard[r][c].length > 0) {
                     let notesHtml = '<div class="notes-grid">';
@@ -205,7 +206,6 @@ function selectCell(row, col, fromPartner = false) {
         if (partnerCell) partnerCell.classList.add('partner-selected');
         return; 
     }
-
     selectedCell = { row, col };
     document.querySelectorAll('.cell').forEach(c => {
         c.classList.remove('selected', 'highlight');
@@ -213,10 +213,7 @@ function selectCell(row, col, fromPartner = false) {
         if (r === row && colIdx === col) c.classList.add('selected');
         else if (r === row || colIdx === col || (Math.floor(r/3) === Math.floor(row/3) && Math.floor(colIdx/3) === Math.floor(col/3))) c.classList.add('highlight');
     });
-
-    if (currentMode === 'coop') {
-        socket.emit('coop_select', { room_code: currentRoomCode, row: row, col: col });
-    }
+    if (currentMode === 'coop') socket.emit('coop_select', { room_code: currentRoomCode, row: row, col: col });
 }
 
 document.querySelectorAll('.num-btn').forEach(btn => {
@@ -247,17 +244,22 @@ function autoRemoveNotes(row, col, num) {
     }
 }
 
+// LOGIC ĐIỀN SỐ (FIX LỖI TẠI ĐÂY)
 function fillCell(row, col, num, fromPartner = false) {
-    const cellEl = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
-    if (cellEl.classList.contains('readonly')) return;
+    if (initialBoard[row][col] !== 0) return; // Khóa chặt ô của Đề bài, không cho sửa
 
+    if (num !== 0 && !isPencilMode && currentBoard[row][col] === num) return; // Tránh spam bấm 1 số sai nhiều lần
+
+    // CỤC TẨY
     if (num === 0) {
+        if (currentBoard[row][col] === solutionBoard[row][col]) correctCells--; // Nếu tẩy nhầm số đúng thì trừ tiến độ
         currentBoard[row][col] = 0; notesBoard[row][col] = [];
         renderBoard(); selectCell(row, col); 
         if (currentMode === 'coop' && !fromPartner) socket.emit('coop_fill', { room_code: currentRoomCode, row: row, col: col, num: 0 });
         return;
     }
 
+    // BÚT CHÌ
     if (isPencilMode && !fromPartner) {
         if (currentBoard[row][col] !== 0) return; 
         const noteIdx = notesBoard[row][col].indexOf(num);
@@ -267,12 +269,11 @@ function fillCell(row, col, num, fromPartner = false) {
         return;
     }
 
+    // ĐIỀN SỐ THẬT
     const wasCorrect = (currentBoard[row][col] === solutionBoard[row][col] && currentBoard[row][col] !== 0);
     currentBoard[row][col] = num; notesBoard[row][col] = []; 
     
-    if (currentMode === 'coop' && !fromPartner) {
-        socket.emit('coop_fill', { room_code: currentRoomCode, row: row, col: col, num: num });
-    }
+    if (currentMode === 'coop' && !fromPartner) socket.emit('coop_fill', { room_code: currentRoomCode, row: row, col: col, num: num });
 
     if (solutionBoard[row][col] !== num) {
         mistakesCount++; updateHearts();
@@ -289,7 +290,6 @@ function fillCell(row, col, num, fromPartner = false) {
     }
     
     scoreElement.innerText = score; renderBoard(); selectCell(row, col);
-    if (solutionBoard[row][col] !== num) document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`).classList.add('error');
 
     if (currentMode === 'multiplayer' && !fromPartner) {
         const percent = Math.floor((correctCells / totalEmptyCells) * 100);
@@ -300,7 +300,6 @@ function fillCell(row, col, num, fromPartner = false) {
     if (checkWin()) {
         clearInterval(timerInterval); 
         confetti({ particleCount: 200, spread: 90, origin: { y: 0.6 } });
-
         if (currentMode === 'multiplayer' && !fromPartner) socket.emit('game_won', { room_code: currentRoomCode });
 
         setTimeout(() => {
