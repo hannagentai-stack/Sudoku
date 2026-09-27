@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="vi">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -10,12 +9,27 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
-
 <body>
+    <!-- SẢNH CHỜ (LOBBY SCREEN) -->
+    <div id="home-screen" class="home-screen">
+        <div id="floating-bg"></div>
+        <div class="logo-container">
+            <h1 class="main-logo">SUDOKU PRO</h1>
+        </div>
+        <div class="menu-container">
+            <button class="menu-btn" data-target="normal" style="background-color: #3b82f6;"><i class="fa-solid fa-play"></i> Chơi Đơn</button>
+            <button class="menu-btn" data-target="daily" style="background-color: #8b5cf6;"><i class="fa-solid fa-calendar-day"></i> Đố Ngày</button>
+            <button class="menu-btn" data-target="versus" style="background-color: #10b981;"><i class="fa-solid fa-users"></i> Đấu 1vs1</button>
+            <button class="menu-btn" data-target="coop" style="background-color: #f43f5e;"><i class="fa-solid fa-handshake"></i> Đồng Đội</button>
+        </div>
+    </div>
+
+    <!-- MÀN HÌNH CHƠI GAME -->
     <div class="game-wrapper">
         <header class="header">
             <div class="top-row">
-                <h1 id="main-title"><i class="fa-solid fa-table-cells"></i> Sudoku</h1>
+                <button id="btn-home" class="theme-toggle" style="margin-right: 10px;"><i class="fa-solid fa-house"></i></button>
+                <h1 id="main-title" style="flex: 1; text-align: center;"><i class="fa-solid fa-table-cells"></i> Sudoku</h1>
                 <button id="btn-theme" class="theme-toggle"><i class="fa-solid fa-moon"></i></button>
             </div>
             <div class="info-row">
@@ -28,19 +42,15 @@
                     <option value="hard">Khó</option>
                 </select>
             </div>
-
+            
             <div id="multiplayer-panel" style="display: none; margin-top: 15px;">
                 <div style="font-size: 0.8rem; font-weight: bold; color: #3b82f6;">Tiến độ của bạn:</div>
                 <div style="background: #cbd5e1; height: 8px; border-radius: 4px; margin-bottom: 5px;">
-                    <div id="my-progress"
-                        style="width: 0%; background: #3b82f6; height: 100%; border-radius: 4px; transition: width 0.3s;">
-                    </div>
+                    <div id="my-progress" style="width: 0%; background: #3b82f6; height: 100%; border-radius: 4px; transition: width 0.3s;"></div>
                 </div>
                 <div style="font-size: 0.8rem; font-weight: bold; color: #ef4444;">Đối thủ:</div>
                 <div style="background: #cbd5e1; height: 8px; border-radius: 4px;">
-                    <div id="opp-progress"
-                        style="width: 0%; background: #ef4444; height: 100%; border-radius: 4px; transition: width 0.3s;">
-                    </div>
+                    <div id="opp-progress" style="width: 0%; background: #ef4444; height: 100%; border-radius: 4px; transition: width 0.3s;"></div>
                 </div>
             </div>
         </header>
@@ -51,8 +61,7 @@
 
         <footer class="footer">
             <div style="display: flex; justify-content: center; margin-bottom: 5px;">
-                <button id="btn-pencil"
-                    style="background: #64748b; color: white; border: none; padding: 8px 25px; border-radius: 20px; font-weight: bold; cursor: pointer; display: flex; gap: 8px; align-items: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); transition: 0.2s;">
+                <button id="btn-pencil" style="background: #64748b; color: white; border: none; padding: 8px 25px; border-radius: 20px; font-weight: bold; cursor: pointer; display: flex; gap: 8px; align-items: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); transition: 0.2s;">
                     <i class="fa-solid fa-pencil"></i> Nháp: TẮT
                 </button>
             </div>
@@ -69,64 +78,38 @@
                 <button class="num-btn" data-num="9">9</button>
                 <button class="num-btn clear-btn" data-num="0"><i class="fa-solid fa-eraser"></i></button>
             </div>
-
-            <!-- THÊM NÚT ĐỒNG ĐỘI VÀO ĐÂY -->
+            
             <div class="actions">
-                <button id="btn-new-game" class="action-btn primary"><i
-                        class="fa-solid fa-rotate-right"></i><span>Thường</span></button>
-                <button id="btn-daily" class="action-btn" style="background-color: #8b5cf6;"><i
-                        class="fa-solid fa-calendar-day"></i><span>Đố Ngày</span></button>
-                <button id="btn-multiplayer" class="action-btn" style="background-color: #10b981;"><i
-                        class="fa-solid fa-users"></i><span>Đấu 1vs1</span></button>
-                <button id="btn-coop" class="action-btn" style="background-color: #f43f5e;"><i
-                        class="fa-solid fa-handshake"></i><span>Đồng Đội</span></button>
-                <button id="btn-hint" class="action-btn warning"><i class="fa-solid fa-lightbulb"></i><span>Gợi
-                        ý</span></button>
+                <button id="btn-hint" class="action-btn warning" style="flex: 1;"><i class="fa-solid fa-lightbulb"></i><span>Gợi ý</span></button>
+                <button id="btn-solve" class="action-btn danger" style="flex: 1;"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Giải Tự Động</span></button>
             </div>
         </footer>
     </div>
 
     <!-- Cửa sổ Tạo/Vào Phòng ĐỐI KHÁNG -->
-    <div id="room-modal"
-        style="display: none; position: fixed; top:0; left:0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center;">
-        <div
-            style="background: var(--panel-bg); padding: 25px; border-radius: 12px; width: 90%; max-width: 350px; text-align: center;">
+    <div id="room-modal" style="display: none; position: fixed; top:0; left:0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2500; justify-content: center; align-items: center;">
+        <div style="background: var(--panel-bg); padding: 25px; border-radius: 12px; width: 90%; max-width: 350px; text-align: center;">
             <h2 style="margin-bottom: 20px; color: #10b981;">⚔️ Thi đấu 1vs1</h2>
-            <button id="btn-create-room"
-                style="width: 100%; padding: 12px; font-weight: bold; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; margin-bottom: 20px;">Tạo
-                phòng mới</button>
+            <button id="btn-create-room" style="width: 100%; padding: 12px; font-weight: bold; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; margin-bottom: 20px;">Tạo phòng mới</button>
             <p style="margin-bottom: 10px; font-weight: bold; color: gray;">HOẶC NHẬP MÃ PHÒNG</p>
-            <input type="text" id="room-code-input" placeholder="VD: A1B2"
-                style="width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 2px solid var(--border-color); text-transform: uppercase; font-weight: bold; text-align: center;">
-            <button id="btn-join-room"
-                style="width: 100%; padding: 12px; font-weight: bold; background: #f59e0b; color: white; border: none; border-radius: 8px; cursor: pointer; margin-bottom: 20px;">Vào
-                phòng</button>
-            <button id="btn-close-modal"
-                style="padding: 8px 20px; border-radius: 5px; border: none; cursor: pointer;">Hủy</button>
+            <input type="text" id="room-code-input" placeholder="VD: A1B2" style="width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 2px solid var(--border-color); text-transform: uppercase; font-weight: bold; text-align: center;">
+            <button id="btn-join-room" style="width: 100%; padding: 12px; font-weight: bold; background: #f59e0b; color: white; border: none; border-radius: 8px; cursor: pointer; margin-bottom: 20px;">Vào phòng</button>
+            <button id="btn-close-modal" style="padding: 8px 20px; border-radius: 5px; border: none; cursor: pointer;">Hủy</button>
         </div>
     </div>
 
     <!-- Cửa sổ Tạo/Vào Phòng ĐỒNG ĐỘI -->
-    <div id="coop-modal"
-        style="display: none; position: fixed; top:0; left:0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center;">
-        <div
-            style="background: var(--panel-bg); padding: 25px; border-radius: 12px; width: 90%; max-width: 350px; text-align: center;">
+    <div id="coop-modal" style="display: none; position: fixed; top:0; left:0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2500; justify-content: center; align-items: center;">
+        <div style="background: var(--panel-bg); padding: 25px; border-radius: 12px; width: 90%; max-width: 350px; text-align: center;">
             <h2 style="margin-bottom: 20px; color: #f43f5e;">🤝 Chơi Đồng Đội</h2>
-            <button id="btn-create-coop"
-                style="width: 100%; padding: 12px; font-weight: bold; background: #f43f5e; color: white; border: none; border-radius: 8px; cursor: pointer; margin-bottom: 20px;">Tạo
-                phòng Co-op</button>
+            <button id="btn-create-coop" style="width: 100%; padding: 12px; font-weight: bold; background: #f43f5e; color: white; border: none; border-radius: 8px; cursor: pointer; margin-bottom: 20px;">Tạo phòng Co-op</button>
             <p style="margin-bottom: 10px; font-weight: bold; color: gray;">HOẶC NHẬP MÃ PHÒNG</p>
-            <input type="text" id="coop-code-input" placeholder="VD: C9X2"
-                style="width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 2px solid var(--border-color); text-transform: uppercase; font-weight: bold; text-align: center;">
-            <button id="btn-join-coop"
-                style="width: 100%; padding: 12px; font-weight: bold; background: #f59e0b; color: white; border: none; border-radius: 8px; cursor: pointer; margin-bottom: 20px;">Vào
-                phòng</button>
-            <button id="btn-close-coop-modal"
-                style="padding: 8px 20px; border-radius: 5px; border: none; cursor: pointer;">Hủy</button>
+            <input type="text" id="coop-code-input" placeholder="VD: C9X2" style="width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 2px solid var(--border-color); text-transform: uppercase; font-weight: bold; text-align: center;">
+            <button id="btn-join-coop" style="width: 100%; padding: 12px; font-weight: bold; background: #f59e0b; color: white; border: none; border-radius: 8px; cursor: pointer; margin-bottom: 20px;">Vào phòng</button>
+            <button id="btn-close-coop-modal" style="padding: 8px 20px; border-radius: 5px; border: none; cursor: pointer;">Hủy</button>
         </div>
     </div>
 
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
-
 </html>
