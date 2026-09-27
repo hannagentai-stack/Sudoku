@@ -1,20 +1,9 @@
-const socket = io(); // Kết nối WebSocket với Server
-let currentBoard = [];
-let solutionBoard = [];
-let selectedCell = null;
-let timerInterval = null;
-let seconds = 0;
-let score = 0;
-let currentMode = 'normal';
-let totalEmptyCells = 0;    
-let correctCells = 0;
-let currentRoomCode = null;
-
-// --- CÁC BIẾN CHO TÍNH NĂNG MỚI ---
-let mistakesCount = 0;
-const MAX_MISTAKES = 3;
-let isPencilMode = false;
-let notesBoard = []; // Mảng 3 chiều lưu các số nháp của từng ô
+const socket = io(); 
+let currentBoard = [], solutionBoard = [], notesBoard = [];
+let selectedCell = null, timerInterval = null, seconds = 0, score = 0;
+let currentMode = 'normal'; 
+let totalEmptyCells = 0, correctCells = 0, currentRoomCode = null;
+let mistakesCount = 0; const MAX_MISTAKES = 3; let isPencilMode = false;
 
 const boardElement = document.getElementById('sudoku-board');
 const timerElement = document.getElementById('timer');
@@ -24,19 +13,18 @@ const mainTitle = document.getElementById('main-title');
 const mistakesElement = document.getElementById('mistakes');
 const btnPencil = document.getElementById('btn-pencil');
 
-// UI Elements cho Multiplayer
 const roomModal = document.getElementById('room-modal');
+const coopModal = document.getElementById('coop-modal');
 const multiplayerPanel = document.getElementById('multiplayer-panel');
 const myProgressEl = document.getElementById('my-progress');
 const oppProgressEl = document.getElementById('opp-progress');
 
-// --- BẬT TẮT CHẾ ĐỘ SÁNG/TỐI ---
+// --- THEME & GHI NHÁP ---
 themeBtn.addEventListener('click', () => {
     const isDark = document.body.getAttribute('data-theme') === 'dark';
     document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
 });
 
-// --- NÚT BẬT/TẮT GHI NHÁP ---
 btnPencil.addEventListener('click', () => {
     isPencilMode = !isPencilMode;
     if (isPencilMode) {
@@ -48,42 +36,28 @@ btnPencil.addEventListener('click', () => {
     }
 });
 
-// --- HÀM CẬP NHẬT 3 TRÁI TIM ---
 function updateHearts() {
     let hearts = '';
-    for(let i=0; i < MAX_MISTAKES - mistakesCount; i++) hearts += '❤️'; // Tim đỏ
-    for(let i=0; i < mistakesCount; i++) hearts += '🖤'; // Tim đen (mất mạng)
+    for(let i=0; i < MAX_MISTAKES - mistakesCount; i++) hearts += '❤️'; 
+    for(let i=0; i < mistakesCount; i++) hearts += '🖤'; 
     mistakesElement.innerText = hearts;
 }
 
+// --- MENU CHÍNH ---
 document.getElementById('btn-new-game').addEventListener('click', () => {
-    currentMode = 'normal';
-    mainTitle.innerHTML = '<i class="fa-solid fa-table-cells"></i> Sudoku';
-    multiplayerPanel.style.display = 'none';
-    const difficulty = document.getElementById('difficulty').value;
-    startNewGame(difficulty);
+    currentMode = 'normal'; mainTitle.innerHTML = '<i class="fa-solid fa-table-cells"></i> Sudoku';
+    multiplayerPanel.style.display = 'none'; startNewGame(document.getElementById('difficulty').value);
 });
 
 document.getElementById('btn-daily').addEventListener('click', () => {
-    currentMode = 'daily';
-    mainTitle.innerHTML = '<i class="fa-solid fa-calendar-day"></i> Đố Ngày';
-    multiplayerPanel.style.display = 'none';
-    startNewGame('medium'); 
+    currentMode = 'daily'; mainTitle.innerHTML = '<i class="fa-solid fa-calendar-day"></i> Đố Ngày';
+    multiplayerPanel.style.display = 'none'; startNewGame('medium'); 
 });
 
-// --- LOGIC MULTIPLAYER 1vs1 ---
-document.getElementById('btn-multiplayer').addEventListener('click', () => {
-    roomModal.style.display = 'flex';
-});
-
-document.getElementById('btn-close-modal').addEventListener('click', () => {
-    roomModal.style.display = 'none';
-});
-
-document.getElementById('btn-create-room').addEventListener('click', () => {
-    socket.emit('create_room');
-});
-
+// --- MENU MULTIPLAYER 1VS1 ---
+document.getElementById('btn-multiplayer').addEventListener('click', () => { roomModal.style.display = 'flex'; });
+document.getElementById('btn-close-modal').addEventListener('click', () => { roomModal.style.display = 'none'; });
+document.getElementById('btn-create-room').addEventListener('click', () => { socket.emit('create_room'); });
 document.getElementById('btn-join-room').addEventListener('click', () => {
     const code = document.getElementById('room-code-input').value;
     if (!code) return alert("Vui lòng nhập mã phòng!");
@@ -91,94 +65,87 @@ document.getElementById('btn-join-room').addEventListener('click', () => {
 });
 
 socket.on('room_created', (data) => {
-    alert(`Tạo phòng thành công!\n\n🔑 MÃ PHÒNG: ${data.room_code}\n\nHãy gửi mã này cho bạn bè.`);
+    alert(`Tạo phòng 1VS1 thành công!\n\n🔑 MÃ PHÒNG: ${data.room_code}`);
     currentRoomCode = data.room_code;
 });
-
 socket.on('game_start', (data) => {
     alert("🔥 ĐỐI THỦ ĐÃ VÀO PHÒNG! BẮT ĐẦU!");
-    roomModal.style.display = 'none';
-    multiplayerPanel.style.display = 'block'; 
-    currentMode = 'multiplayer';
-    currentRoomCode = data.room_code;
+    roomModal.style.display = 'none'; multiplayerPanel.style.display = 'block'; 
+    currentMode = 'multiplayer'; currentRoomCode = data.room_code;
     mainTitle.innerHTML = `⚔️ Đấu: ${currentRoomCode}`;
-    
-    currentBoard = data.board;
-    solutionBoard = data.solution;
-    resetGameStats();
+    currentBoard = data.board; solutionBoard = data.solution; resetGameStats();
+});
+socket.on('opponent_progress', (data) => { oppProgressEl.style.width = `${data.progress}%`; });
+socket.on('opponent_won', () => { clearInterval(timerInterval); alert("💀 BẠN ĐÃ THUA!\nĐối thủ đã giải xong trước!"); });
+
+// --- MENU ĐỒNG ĐỘI CO-OP ---
+document.getElementById('btn-coop').addEventListener('click', () => { coopModal.style.display = 'flex'; });
+document.getElementById('btn-close-coop-modal').addEventListener('click', () => { coopModal.style.display = 'none'; });
+document.getElementById('btn-create-coop').addEventListener('click', () => { socket.emit('create_coop_room'); });
+document.getElementById('btn-join-coop').addEventListener('click', () => {
+    const code = document.getElementById('coop-code-input').value;
+    if (!code) return alert("Vui lòng nhập mã phòng!");
+    socket.emit('join_coop_room', { room_code: code });
 });
 
-socket.on('opponent_progress', (data) => {
-    oppProgressEl.style.width = `${data.progress}%`;
+socket.on('coop_room_created', (data) => {
+    alert(`Tạo phòng ĐỒNG ĐỘI thành công!\n\n🔑 MÃ PHÒNG: ${data.room_code}\n\nGửi mã này cho bạn bè nhé!`);
+    currentRoomCode = data.room_code;
+});
+socket.on('coop_start', (data) => {
+    alert("🤝 ĐỒNG ĐỘI ĐÃ VÀO! HÃY CÙNG NHAU PHÁ ĐẢO!");
+    coopModal.style.display = 'none'; multiplayerPanel.style.display = 'none'; // Đồng đội ko cần thanh tiến trình đua
+    currentMode = 'coop'; currentRoomCode = data.room_code;
+    mainTitle.innerHTML = `🤝 Co-op: ${currentRoomCode}`;
+    currentBoard = data.board; solutionBoard = data.solution; resetGameStats();
 });
 
-socket.on('opponent_won', () => {
-    clearInterval(timerInterval);
-    alert("💀 BẠN ĐÃ THUA!\nĐối thủ đã giải xong bảng Sudoku trước bạn!");
+// Nhận tín hiệu Đồng đội đang bấm vào ô nào
+socket.on('coop_opponent_select', (data) => {
+    selectCell(data.row, data.col, true);
 });
-
-socket.on('error', (data) => {
-    alert(data.message);
+// Nhận tín hiệu Đồng đội vừa điền số
+socket.on('coop_opponent_fill', (data) => {
+    fillCell(data.row, data.col, data.num, true);
 });
+socket.on('error', (data) => { alert(data.message); });
 
-// --- API TẠO BẢNG CHẾ ĐỘ THƯỜNG / ĐỐ NGÀY ---
+
+// --- RESET BÀN CỜ ---
 async function startNewGame(difficulty) {
-    const res = await fetch('/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ difficulty: difficulty, mode: currentMode })
-    });
+    const res = await fetch('/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ difficulty: difficulty, mode: currentMode }) });
     const data = await res.json();
-    currentBoard = data.board;
-    solutionBoard = data.solution;
+    currentBoard = data.board; solutionBoard = data.solution;
     resetGameStats();
 }
 
 function resetGameStats() {
-    selectedCell = null;
-    score = 0;
-    scoreElement.innerText = score;
-    myProgressEl.style.width = '0%';
-    oppProgressEl.style.width = '0%';
-    
-    // Reset Trái tim và Bàn nháp
-    mistakesCount = 0;
-    updateHearts();
+    selectedCell = null; score = 0; scoreElement.innerText = score;
+    myProgressEl.style.width = '0%'; oppProgressEl.style.width = '0%';
+    mistakesCount = 0; updateHearts();
     notesBoard = Array.from({length: 9}, () => Array.from({length: 9}, () => []));
-
-    totalEmptyCells = 0;
-    correctCells = 0;
+    totalEmptyCells = 0; correctCells = 0;
     for (let r = 0; r < 9; r++) {
-        for (let c = 0; c < 9; c++) {
-            if (currentBoard[r][c] === 0) totalEmptyCells++;
-        }
+        for (let c = 0; c < 9; c++) if (currentBoard[r][c] === 0) totalEmptyCells++;
     }
-
-    renderBoard();
-    resetTimer();
+    renderBoard(); resetTimer();
 }
 
-// --- VẼ BẢNG VÀ CHỌN Ô ---
 function renderBoard() {
     boardElement.innerHTML = '';
     for (let r = 0; r < 9; r++) {
         for (let c = 0; c < 9; c++) {
             const cell = document.createElement('div');
-            cell.classList.add('cell');
-            cell.dataset.row = r;
-            cell.dataset.col = c;
+            cell.classList.add('cell'); cell.dataset.row = r; cell.dataset.col = c;
             
             if (currentBoard[r][c] !== 0) {
-                // Đã có số chính thức
                 cell.innerHTML = `<div class="cell-value">${currentBoard[r][c]}</div>`;
                 cell.classList.add('readonly');
             } else {
-                // Ô trống, kiểm tra xem có ghi nháp không
                 if (notesBoard[r][c].length > 0) {
                     let notesHtml = '<div class="notes-grid">';
                     for (let i = 1; i <= 9; i++) {
-                        if (notesBoard[r][c].includes(i)) notesHtml += `<div class="note">${i}</div>`;
-                        else notesHtml += `<div class="note"></div>`;
+                        notesHtml += notesBoard[r][c].includes(i) ? `<div class="note">${i}</div>` : `<div class="note"></div>`;
                     }
                     notesHtml += '</div>';
                     cell.innerHTML = `<div class="cell-value"></div>` + notesHtml;
@@ -186,34 +153,37 @@ function renderBoard() {
                     cell.innerHTML = `<div class="cell-value"></div>`;
                 }
             }
-            
             cell.addEventListener('click', () => selectCell(r, c));
             boardElement.appendChild(cell);
         }
     }
 }
 
-// Hỗ trợ đánh dấu ô đang chọn
-function selectCell(row, col) {
+// Bổ sung logic hiển thị viền Đồng đội
+function selectCell(row, col, fromPartner = false) {
+    if (fromPartner) {
+        document.querySelectorAll('.cell').forEach(c => c.classList.remove('partner-selected'));
+        const partnerCell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+        if (partnerCell) partnerCell.classList.add('partner-selected');
+        return; // Xong việc, không chạy phần dưới
+    }
+
     selectedCell = { row, col };
-    const cells = document.querySelectorAll('.cell');
-    cells.forEach(c => {
+    document.querySelectorAll('.cell').forEach(c => {
         c.classList.remove('selected', 'highlight');
-        const r = parseInt(c.dataset.row);
-        const colIdx = parseInt(c.dataset.col);
+        const r = parseInt(c.dataset.row), colIdx = parseInt(c.dataset.col);
         if (r === row && colIdx === col) c.classList.add('selected');
-        else if (r === row || colIdx === col || 
-            (Math.floor(r/3) === Math.floor(row/3) && Math.floor(colIdx/3) === Math.floor(col/3))) 
-            c.classList.add('highlight');
+        else if (r === row || colIdx === col || (Math.floor(r/3) === Math.floor(row/3) && Math.floor(colIdx/3) === Math.floor(col/3))) c.classList.add('highlight');
     });
+
+    // Nếu đang chơi Co-op, bắn tín hiệu mình đang bấm vào đây cho bạn kia biết
+    if (currentMode === 'coop') {
+        socket.emit('coop_select', { room_code: currentRoomCode, row: row, col: col });
+    }
 }
 
-// Lắng nghe sự kiện Bàn phím
 document.querySelectorAll('.num-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        if (!selectedCell) return;
-        fillCell(selectedCell.row, selectedCell.col, parseInt(btn.dataset.num));
-    });
+    btn.addEventListener('click', () => { if (selectedCell) fillCell(selectedCell.row, selectedCell.col, parseInt(btn.dataset.num)); });
 });
 document.addEventListener('keydown', (e) => {
     if (!selectedCell) return;
@@ -222,18 +192,13 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Backspace' || e.key === 'Delete') fillCell(selectedCell.row, selectedCell.col, 0);
 });
 
-// Điều kiện thắng
 function checkWin() {
     for (let r = 0; r < 9; r++) {
-        for (let c = 0; c < 9; c++) {
-            if (currentBoard[r][c] === 0 || currentBoard[r][c] !== solutionBoard[r][c]) return false;
-        }
+        for (let c = 0; c < 9; c++) if (currentBoard[r][c] === 0 || currentBoard[r][c] !== solutionBoard[r][c]) return false;
     }
     return true; 
 }
 
-// --- XÓA SỐ NHÁP TỰ ĐỘNG THÔNG MINH ---
-// Khi điền đúng số 5, tự xóa hết nháp số 5 ở cùng hàng, cùng cột, cùng khối 3x3
 function autoRemoveNotes(row, col, num) {
     for (let i = 0; i < 9; i++) {
         notesBoard[row][i] = notesBoard[row][i].filter(n => n !== num);
@@ -241,157 +206,98 @@ function autoRemoveNotes(row, col, num) {
     }
     const sr = Math.floor(row/3)*3, sc = Math.floor(col/3)*3;
     for (let r=0; r<3; r++) {
-        for (let c=0; c<3; c++) {
-            notesBoard[sr+r][sc+c] = notesBoard[sr+r][sc+c].filter(n => n !== num);
-        }
+        for (let c=0; c<3; c++) notesBoard[sr+r][sc+c] = notesBoard[sr+r][sc+c].filter(n => n !== num);
     }
 }
 
-// --- XỬ LÝ KHI NGƯỜI CHƠI BẤM SỐ ---
-function fillCell(row, col, num) {
+// Bổ sung luồng bắn data Co-op (tham số fromPartner)
+function fillCell(row, col, num, fromPartner = false) {
     const cellEl = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
     if (cellEl.classList.contains('readonly')) return;
 
-    // Nút Xóa (Cục tẩy)
     if (num === 0) {
-        currentBoard[row][col] = 0;
-        notesBoard[row][col] = []; // Cục tẩy xóa sạch cả số thật lẫn nháp
-        renderBoard();
-        selectCell(row, col); // Giữ highlight
+        currentBoard[row][col] = 0; notesBoard[row][col] = [];
+        renderBoard(); selectCell(row, col); 
+        // Bắn dữ liệu xóa ô cho đồng đội
+        if (currentMode === 'coop' && !fromPartner) socket.emit('coop_fill', { room_code: currentRoomCode, row: row, col: col, num: 0 });
         return;
     }
 
-    // NẾU ĐANG BẬT BÚT CHÌ (GHI NHÁP)
-    if (isPencilMode) {
-        if (currentBoard[row][col] !== 0) return; // Nếu ô đã có số thật thì không cho nháp nữa
-        
+    if (isPencilMode && !fromPartner) {
+        if (currentBoard[row][col] !== 0) return; 
         const noteIdx = notesBoard[row][col].indexOf(num);
-        if (noteIdx > -1) notesBoard[row][col].splice(noteIdx, 1); // Bấm lại lần 2 để xóa nháp
-        else notesBoard[row][col].push(num); // Bấm lần 1 để viết nháp
-        
-        renderBoard();
-        selectCell(row, col);
+        if (noteIdx > -1) notesBoard[row][col].splice(noteIdx, 1); 
+        else notesBoard[row][col].push(num); 
+        renderBoard(); selectCell(row, col);
         return;
     }
 
-    // NẾU LÀ ĐIỀN SỐ THẬT CHÍNH THỨC
     const wasCorrect = (currentBoard[row][col] === solutionBoard[row][col] && currentBoard[row][col] !== 0);
-    currentBoard[row][col] = num;
-    notesBoard[row][col] = []; // Đã chốt số thật thì xóa hết nháp ở ô đó đi
+    currentBoard[row][col] = num; notesBoard[row][col] = []; 
     
+    // GỬI DATA CHO ĐỒNG ĐỘI
+    if (currentMode === 'coop' && !fromPartner) {
+        socket.emit('coop_fill', { room_code: currentRoomCode, row: row, col: col, num: num });
+    }
+
     if (solutionBoard[row][col] !== num) {
-        // TRƯỜNG HỢP: ĐIỀN SAI -> BỊ TRỪ MẠNG
-        mistakesCount++;
-        updateHearts();
-        
+        mistakesCount++; updateHearts();
         if (mistakesCount >= MAX_MISTAKES) {
-            // HẾT MẠNG LÀ GAME OVER LUÔN
-            currentBoard = JSON.parse(JSON.stringify(solutionBoard)); // Hiện thẳng đáp án
-            renderBoard();
-            clearInterval(timerInterval);
-            setTimeout(() => {
-                alert("💀 GAME OVER!\nBạn đã điền sai quá 3 lần. Trò chơi kết thúc!");
-            }, 100);
+            currentBoard = JSON.parse(JSON.stringify(solutionBoard)); 
+            renderBoard(); clearInterval(timerInterval);
+            setTimeout(() => { alert(currentMode === 'coop' ? "💀 GAME OVER!\nCả team đã bóp nhau quá 3 lần!" : "💀 GAME OVER!\nBạn đã điền sai quá 3 lần."); }, 100);
             return;
         }
-
-        score = Math.max(0, score - 5);
-        if (wasCorrect) correctCells--; 
+        score = Math.max(0, score - 5); if (wasCorrect) correctCells--; 
     } else {
-        // TRƯỜNG HỢP: ĐIỀN ĐÚNG
-        score += 10;
-        if (!wasCorrect) correctCells++;
-        
-        // Tự động xóa số nháp tương ứng ở các ô xung quanh
+        score += 10; if (!wasCorrect) correctCells++;
         autoRemoveNotes(row, col, num);
     }
     
-    scoreElement.innerText = score;
-    renderBoard();
-    selectCell(row, col);
+    scoreElement.innerText = score; renderBoard(); selectCell(row, col);
+    if (solutionBoard[row][col] !== num) document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`).classList.add('error');
 
-    // Tô đỏ ô nếu điền sai (Phải chèn class error sau khi render lại)
-    const newCellEl = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
-    if (solutionBoard[row][col] !== num) {
-        newCellEl.classList.add('error');
-    }
-
-    // BẮN TIẾN ĐỘ CHẠY SANG MÁY ĐỐI THỦ (MULTILAYER)
-    if (currentMode === 'multiplayer') {
+    if (currentMode === 'multiplayer' && !fromPartner) {
         const percent = Math.floor((correctCells / totalEmptyCells) * 100);
         myProgressEl.style.width = `${percent}%`;
         socket.emit('update_progress', { room_code: currentRoomCode, progress: percent });
     }
 
-    // KIỂM TRA CHIẾN THẮNG CUỐI CÙNG
     if (checkWin()) {
         clearInterval(timerInterval); 
-        
-        // Bắn Pháo giấy (Confetti) bay tung tóe ra khắp màn hình!!! 🎉
-        confetti({
-            particleCount: 150, // Số lượng pháo
-            spread: 80,         // Độ văng xa
-            origin: { y: 0.6 }  // Nổ từ giữa màn hình hất lên
-        });
+        confetti({ particleCount: 200, spread: 90, origin: { y: 0.6 } });
 
-        if (currentMode === 'multiplayer') socket.emit('game_won', { room_code: currentRoomCode });
+        if (currentMode === 'multiplayer' && !fromPartner) socket.emit('game_won', { room_code: currentRoomCode });
 
-        // Chờ 1 giây cho pháo hoa nổ xong thì mới bung thông báo chúc mừng
         setTimeout(() => {
-            if (currentMode === 'daily') {
-                let name = prompt(`🎉 CHÚC MỪNG!\nThời gian: ${timerElement.innerText}\nNhập tên để lưu Bảng xếp hạng:`);
-                if (name) submitDailyScore(name, seconds);
-            } else if (currentMode === 'multiplayer') {
-                alert(`🏆 BẠN LÀ NGƯỜI CHIẾN THẮNG! 🏆\nĐối thủ hít khói rồi!`);
-            } else {
-                alert(`🎉 CHÚC MỪNG CHIẾN THẮNG! 🎉\n⭐ Điểm số: ${score}\n⏱ Thời gian: ${timerElement.innerText}`);
-            }
+            if (currentMode === 'coop') alert(`🤝 TUYỆT VỜI! Cả hai bạn đã cùng nhau phá đảo thành công!`);
+            else if (currentMode === 'daily') { let name = prompt(`🎉 CHÚC MỪNG!\nThời gian: ${timerElement.innerText}\nNhập tên:`); if (name) submitDailyScore(name, seconds); }
+            else if (currentMode === 'multiplayer') alert(`🏆 BẠN LÀ NGƯỜI CHIẾN THẮNG! 🏆\nĐối thủ hít khói rồi!`);
+            else alert(`🎉 CHÚC MỪNG CHIẾN THẮNG! 🎉\n⭐ Điểm số: ${score}\n⏱ Thời gian: ${timerElement.innerText}`);
         }, 1000); 
     }
 }
 
-// Cấm gian lận
 document.getElementById('btn-hint').addEventListener('click', () => {
-    if (currentMode === 'multiplayer' || currentMode === 'daily') return alert("❌ Không cho dùng Gợi ý!");
+    if (currentMode === 'multiplayer' || currentMode === 'daily' || currentMode === 'coop') return alert("❌ Chế độ này không cho dùng Gợi ý!");
     if (!selectedCell) return alert("Chọn 1 ô để gợi ý!");
     fillCell(selectedCell.row, selectedCell.col, solutionBoard[selectedCell.row][selectedCell.col]);
-    score = Math.max(0, score - 15);
-    scoreElement.innerText = score;
 });
-
 document.getElementById('btn-solve').addEventListener('click', () => {
-    if (currentMode === 'multiplayer' || currentMode === 'daily') return alert("❌ Không cho Giải tự động!");
-    currentBoard = JSON.parse(JSON.stringify(solutionBoard));
-    renderBoard();
-    clearInterval(timerInterval);
+    if (currentMode === 'multiplayer' || currentMode === 'daily' || currentMode === 'coop') return alert("❌ Không cho Giải tự động!");
+    currentBoard = JSON.parse(JSON.stringify(solutionBoard)); renderBoard(); clearInterval(timerInterval);
 });
-
 async function submitDailyScore(name, timeSec) {
-    const res = await fetch('/submit_daily', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ player_name: name, time_seconds: timeSec })
-    });
+    const res = await fetch('/submit_daily', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ player_name: name, time_seconds: timeSec }) });
     const data = await res.json();
     let boardText = "🏆 BẢNG XẾP HẠNG HÔM NAY 🏆\n\n";
-    data.leaderboard.forEach((p, idx) => {
-        let m = String(Math.floor(p.time/60)).padStart(2,'0');
-        let s = String(p.time%60).padStart(2,'0');
-        boardText += `Top ${idx+1}: ${p.name} - ${m}:${s}\n`;
-    });
+    data.leaderboard.forEach((p, idx) => { boardText += `Top ${idx+1}: ${p.name} - ${String(Math.floor(p.time/60)).padStart(2,'0')}:${String(p.time%60).padStart(2,'0')}\n`; });
     alert(boardText);
 }
-
 function resetTimer() {
-    clearInterval(timerInterval);
-    seconds = 0;
-    timerElement.innerText = "00:00";
+    clearInterval(timerInterval); seconds = 0; timerElement.innerText = "00:00";
     timerInterval = setInterval(() => {
-        seconds++;
-        const mins = String(Math.floor(seconds / 60)).padStart(2, '0');
-        const secs = String(seconds % 60).padStart(2, '0');
-        timerElement.innerText = `${mins}:${secs}`;
+        seconds++; timerElement.innerText = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
     }, 1000);
 }
-
 startNewGame('easy');
