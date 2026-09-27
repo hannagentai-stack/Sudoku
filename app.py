@@ -12,7 +12,6 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///sudoku.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
-# Bật SocketIO để giao tiếp thời gian thực
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 class Leaderboard(db.Model):
@@ -24,11 +23,9 @@ class Leaderboard(db.Model):
 with app.app_context():
     db.create_all()
 
-# Lưu trữ dữ liệu các phòng đang mở
 active_rooms = {}
 
 def generate_room_code():
-    # Tạo mã phòng gồm 4 ký tự (chữ + số)
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
 
 @app.route('/')
@@ -61,41 +58,75 @@ def submit_daily():
     leaderboard_data = [{'name': p.player_name, 'time': p.time_seconds} for p in top_players]
     return jsonify({'status': 'success', 'leaderboard': leaderboard_data})
 
-# --- LOGIC THI ĐẤU MULTIPLAYER ---
+
+# ==========================================
+# 1. LOGIC MULTIPLAYER: ĐỐI KHÁNG (1vs1)
+# ==========================================
 @socketio.on('create_room')
 def handle_create_room():
     room_code = generate_room_code()
     join_room(room_code)
-    # Tạo sẵn 1 bảng Sudoku dùng chung cho cả phòng
     board, solution = generate_sudoku('medium')
-    active_rooms[room_code] = {'board': board, 'solution': solution}
+    active_rooms[room_code] = {'board': board, 'solution': solution, 'type': 'versus'}
     emit('room_created', {'room_code': room_code})
 
 @socketio.on('join_room')
 def handle_join_room(data):
     room_code = data.get('room_code').upper()
-    if room_code in active_rooms:
+    if room_code in active_rooms and active_rooms[room_code].get('type') == 'versus':
         join_room(room_code)
-        # Bắn tín hiệu Bắt đầu game cho TOÀN BỘ người trong phòng
         emit('game_start', {
             'board': active_rooms[room_code]['board'],
             'solution': active_rooms[room_code]['solution'],
             'room_code': room_code
         }, to=room_code)
     else:
-        emit('error', {'message': 'Mã phòng không tồn tại!'})
+        emit('error', {'message': 'Mã phòng Đối Kháng không tồn tại!'})
 
 @socketio.on('update_progress')
 def handle_update_progress(data):
-    room_code = data.get('room_code')
-    # Bắn tiến độ % sang cho người KIA xem (không bắn lại cho mình)
-    emit('opponent_progress', {'progress': data.get('progress')}, to=room_code, include_self=False)
+    emit('opponent_progress', {'progress': data.get('progress')}, to=data.get('room_code'), include_self=False)
 
 @socketio.on('game_won')
 def handle_game_won(data):
-    # Khi 1 người gửi tín hiệu thắng, báo cho người kia biết họ đã thua
     emit('opponent_won', {}, to=data.get('room_code'), include_self=False)
 
+
+# ==========================================
+# 2. LOGIC MULTIPLAYER: ĐỒNG ĐỘI (CO-OP) MỚI!
+# ==========================================
+@socketio.on('create_coop_room')
+def handle_create_coop_room():
+    room_code = generate_room_code()
+    join_room(room_code)
+    # Chơi Đồng đội thì tự động chọn mức độ KHÓ (Hard)
+    board, solution = generate_sudoku('hard') 
+    active_rooms[room_code] = {'board': board, 'solution': solution, 'type': 'coop'}
+    emit('coop_room_created', {'room_code': room_code})
+
+@socketio.on('join_coop_room')
+def handle_join_coop_room(data):
+    room_code = data.get('room_code').upper()
+    if room_code in active_rooms and active_rooms[room_code].get('type') == 'coop':
+        join_room(room_code)
+        emit('coop_start', {
+            'board': active_rooms[room_code]['board'],
+            'solution': active_rooms[room_code]['solution'],
+            'room_code': room_code
+        }, to=room_code)
+    else:
+        emit('error', {'message': 'Mã phòng Đồng Đội không tồn tại!'})
+
+# Lắng nghe khi 1 người BẤM CHỌN 1 ô, báo cho người kia biết
+@socketio.on('coop_select')
+def handle_coop_select(data):
+    emit('coop_opponent_select', data, to=data.get('room_code'), include_self=False)
+
+# Lắng nghe khi 1 người ĐIỀN SỐ, gửi số đó sang máy người kia
+@socketio.on('coop_fill')
+def handle_coop_fill(data):
+    emit('coop_opponent_fill', data, to=data.get('room_code'), include_self=False)
+
+
 if __name__ == '__main__':
-    # Lưu ý: Chạy bằng socketio thay vì app.run
     socketio.run(app, host='0.0.0.0', debug=True, port=5000)
