@@ -1,7 +1,8 @@
+import os
 from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_socketio import SocketIO, emit, join_room, leave_room
-from sudoku_logic import generate_sudoku # Gọi hàm siêu tốc
+from sudoku_logic import generate_sudoku
 import datetime
 import random
 import string
@@ -10,6 +11,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'sudoku-secret'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///sudoku.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 db = SQLAlchemy(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
@@ -36,11 +38,13 @@ def generate():
     data = request.json
     mode = data.get('mode', 'normal')
     difficulty = data.get('difficulty', 'easy')
+    
     if mode == 'daily':
         today_str = datetime.date.today().strftime("%Y-%m-%d")
         board, solution = generate_sudoku('medium', seed_value=today_str)
     else:
         board, solution = generate_sudoku(difficulty)
+        
     return jsonify({'board': board, 'solution': solution})
 
 @app.route('/submit_daily', methods=['POST'])
@@ -50,9 +54,11 @@ def submit_daily():
     new_record = Leaderboard(date_str=today_str, player_name=data.get('player_name'), time_seconds=data.get('time_seconds'))
     db.session.add(new_record)
     db.session.commit()
+    
     top_players = Leaderboard.query.filter_by(date_str=today_str).order_by(Leaderboard.time_seconds).limit(5).all()
     leaderboard_data = [{'name': p.player_name, 'time': p.time_seconds} for p in top_players]
     return jsonify({'status': 'success', 'leaderboard': leaderboard_data})
+
 
 # ==========================================
 # 1. LOGIC MULTIPLAYER: ĐỐI KHÁNG (1vs1)
@@ -61,7 +67,6 @@ def submit_daily():
 def handle_create_room():
     room_code = generate_room_code()
     join_room(room_code)
-    # CPU sẽ xử lý thuật toán trộn siêu tốc ở đây
     board, solution = generate_sudoku('medium') 
     active_rooms[room_code] = {'board': board, 'solution': solution, 'type': 'versus'}
     emit('room_created', {'room_code': room_code})
@@ -87,6 +92,7 @@ def handle_update_progress(data):
 def handle_game_won(data):
     emit('opponent_won', {}, to=data.get('room_code'), include_self=False)
 
+
 # ==========================================
 # 2. LOGIC MULTIPLAYER: ĐỒNG ĐỘI (CO-OP)
 # ==========================================
@@ -94,7 +100,6 @@ def handle_game_won(data):
 def handle_create_coop_room():
     room_code = generate_room_code()
     join_room(room_code)
-    # CPU sẽ xử lý thuật toán trộn siêu tốc ở đây
     board, solution = generate_sudoku('hard')
     active_rooms[room_code] = {'board': board, 'solution': solution, 'type': 'coop'}
     emit('coop_room_created', {'room_code': room_code})
@@ -121,4 +126,5 @@ def handle_coop_fill(data):
     emit('coop_opponent_fill', data, to=data.get('room_code'), include_self=False)
 
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', debug=True, port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    socketio.run(app, host='0.0.0.0', port=port)
