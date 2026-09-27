@@ -8,20 +8,15 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    
-    <!-- KHAI BÁO PWA (ỨNG DỤNG CÀI ĐẶT) -->
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#3b82f6">
     <link rel="apple-touch-icon" href="/static/icon.png">
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js');
-        });
-      }
-    </script>
+    <script>if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));</script>
 </head>
 <body>
+    <!-- MÀN HÌNH MƯA RƠI CHILL -->
+    <div id="rain-container"></div>
+
     <!-- SẢNH CHỜ (LOBBY SCREEN) -->
     <div id="home-screen" class="home-screen">
         <div id="floating-bg"></div>
@@ -33,6 +28,13 @@
             <button class="menu-btn" data-target="daily" style="background-color: #8b5cf6;"><i class="fa-solid fa-calendar-day"></i> Đố Ngày</button>
             <button class="menu-btn" data-target="versus" style="background-color: #10b981;"><i class="fa-solid fa-users"></i> Đấu 1vs1</button>
             <button class="menu-btn" data-target="coop" style="background-color: #f43f5e;"><i class="fa-solid fa-handshake"></i> Đồng Đội</button>
+        </div>
+        
+        <!-- THANH CÔNG CỤ CHỮA LÀNH -->
+        <div class="chill-controls" style="display: flex; gap: 15px; margin-top: 40px; z-index: 10;">
+            <button id="btn-music" class="chill-btn"><i class="fa-solid fa-music"></i> Nhạc</button>
+            <button id="btn-sfx" class="chill-btn active"><i class="fa-solid fa-volume-high"></i> SFX</button>
+            <button id="btn-rain" class="chill-btn"><i class="fa-solid fa-cloud-rain"></i> Mưa</button>
         </div>
     </div>
 
@@ -98,7 +100,7 @@
         </footer>
     </div>
 
-    <!-- Cửa sổ Tạo/Vào Phòng ĐỐI KHÁNG -->
+    <!-- Modals Giữ Nguyên -->
     <div id="room-modal" style="display: none; position: fixed; top:0; left:0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2500; justify-content: center; align-items: center;">
         <div style="background: var(--panel-bg); padding: 25px; border-radius: 12px; width: 90%; max-width: 350px; text-align: center;">
             <h2 style="margin-bottom: 20px; color: #10b981;">⚔️ Thi đấu 1vs1</h2>
@@ -110,7 +112,6 @@
         </div>
     </div>
 
-    <!-- Cửa sổ Tạo/Vào Phòng ĐỒNG ĐỘI -->
     <div id="coop-modal" style="display: none; position: fixed; top:0; left:0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2500; justify-content: center; align-items: center;">
         <div style="background: var(--panel-bg); padding: 25px; border-radius: 12px; width: 90%; max-width: 350px; text-align: center;">
             <h2 style="margin-bottom: 20px; color: #f43f5e;">🤝 Chơi Đồng Đội</h2>
@@ -121,7 +122,6 @@
             <button id="btn-close-coop-modal" style="padding: 8px 20px; border-radius: 5px; border: none; cursor: pointer;">Hủy</button>
         </div>
     </div>
-
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>
